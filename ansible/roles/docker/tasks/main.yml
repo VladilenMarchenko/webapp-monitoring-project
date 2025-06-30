@@ -1,4 +1,18 @@
 ---
+- name: Wait for apt locks
+  shell: |
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+      echo "Waiting for other apt processes to finish..."
+      sleep 5
+    done
+  changed_when: false
+
+- name: Wait for automatic updates to complete
+  wait_for:
+    path: /var/lib/dpkg/lock-frontend
+    state: absent
+    timeout: 300
+
 - name: Install Docker dependencies
   apt:
     name:
@@ -10,6 +24,8 @@
       - python3-pip
     state: present
     update_cache: yes
+  retries: 3
+  delay: 10
 
 - name: Add Docker GPG key
   apt_key:
