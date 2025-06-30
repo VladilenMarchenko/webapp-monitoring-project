@@ -1,0 +1,221 @@
+
+---
+
+- name: Deploy Web Application (Force)
+
+  hosts: webservers
+
+  become: yes
+
+  vars:
+
+    app_name: nodejs-webapp
+
+    app_port: 3000
+
+    
+
+  tasks:
+
+    - name: Force remove apt locks
+
+      shell: |
+
+        sudo rm -f /var/lib/dpkg/lock-frontend
+
+        sudo rm -f /var/lib/dpkg/lock
+
+        sudo rm -f /var/cache/apt/archives/lock
+
+        sudo dpkg --configure -a
+
+      ignore_errors: yes
+
+    - name: Install Docker (simplified)
+
+      shell: |
+
+        curl -fsSL https://get.docker.com | sudo sh
+
+        sudo usermod -aG docker ubuntu
+
+        sudo systemctl start docker
+
+        sudo systemctl enable docker
+
+      args:
+
+        creates: /usr/bin/docker
+
+    - name: Install pip
+
+      apt:
+
+        name: python3-pip
+
+        state: present
+
+      retries: 3
+
+      delay: 5
+
+      register: result
+
+      until: result is succeeded
+
+    - name: Install Docker Python module
+
+      pip:
+
+        name: docker
+
+        executable: pip3
+
+    - name: Create app directory
+
+      file:
+
+        path: /opt/webapp
+
+        state: directory
+
+    - name: Create simple Node.js app
+
+      copy:
+
+        content: |
+
+          const express = require('express');
+
+          const app = express();
+
+          const port = 3000;
+
+          
+
+          app.get('/', (req, res) => {
+
+            res.json({ 
+
+              message: 'Hello from Docker!',
+
+              hostname: require('os').hostname(),
+
+              timestamp: new Date()
+
+            });
+
+          });
+
+          
+
+          app.get('/health', (req, res) => {
+
+            res.json({ status: 'healthy' });
+
+          });
+
+          
+
+          app.listen(port, '0.0.0.0', () => {
+
+            console.log(`App listening on port ${port}`);
+
+          });
+
+        dest: /opt/webapp/app.js
+
+    - name: Create package.json
+
+      copy:
+
+        content: |
+
+          {
+
+            "name": "webapp",
+
+            "version": "1.0.0",
+
+            "main": "app.js",
+
+            "dependencies": {
+
+              "express": "^4.18.2"
+
+            }
+
+          }
+
+        dest: /opt/webapp/package.json
+
+    - name: Create Dockerfile
+
+      copy:
+
+        content: |
+
+          FROM node:18-alpine
+
+          WORKDIR /app
+
+          COPY package*.json ./
+
+          RUN npm install
+
+          COPY . .
+
+          EXPOSE 3000
+
+          CMD ["node", "app.js"]
+
+        dest: /opt/webapp/Dockerfile
+
+    - name: Build Docker image
+
+      docker_image:
+
+        name: "{{ app_name }}"
+
+        build:
+
+          path: /opt/webapp
+
+        source: build
+
+    - name: Run container
+
+      docker_container:
+
+        name: "{{ app_name }}"
+
+        image: "{{ app_name }}"
+
+        state: started
+
+        restart_policy: unless-stopped
+
+        ports:
+
+          - "{{ app_port }}:{{ app_port }}"
+
+    - name: Check if app is running
+
+      uri:
+
+        url: "http://localhost:{{ app_port }}/health"
+
+        status_code: 200
+
+      retries: 5
+
+      delay: 5
+
+      
+
+    - name: Display URL
+
+      debug:
+
+        msg: "Application is running at http://{{ ansible_host }}:{{ app_port }}"
+
