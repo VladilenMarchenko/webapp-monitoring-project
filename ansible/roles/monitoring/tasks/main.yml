@@ -23,7 +23,7 @@
     group: ubuntu
 
 - name: Start monitoring stack
-  docker_compose:
+  community.docker.docker_compose_v2:
     project_src: /opt/monitoring
     state: present
   register: output

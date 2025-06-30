@@ -23,9 +23,9 @@
     mode: '0644'
 
 - name: Build and start application
-  docker_compose:
+  community.docker.docker_compose_v2:
     project_src: /opt/webapp
-    build: yes
+    build: true
     state: present
   register: output
 
