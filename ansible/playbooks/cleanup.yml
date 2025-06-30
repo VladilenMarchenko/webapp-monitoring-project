@@ -1,0 +1,26 @@
+---
+- name: Cleanup Infrastructure
+  hosts: all
+  become: yes
+  
+  tasks:
+    - name: Stop all Docker containers
+      shell: docker stop $(docker ps -aq)
+      ignore_errors: yes
+      
+    - name: Remove all Docker containers
+      shell: docker rm $(docker ps -aq)
+      ignore_errors: yes
+      
+    - name: Remove Docker volumes
+      shell: docker volume rm $(docker volume ls -q)
+      ignore_errors: yes
+      
+    - name: Remove Docker networks
+      shell: docker network rm $(docker network ls -q | grep -v bridge | grep -v host | grep -v none)
+      ignore_errors: yes
+      
+    - name: Clean up backup directory
+      file:
+        path: /backup
+        state: absent

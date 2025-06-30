@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  webapp:
+    build: .
+    container_name: nodejs-webapp
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - METRICS_PORT=9100
+    volumes:
+      - webapp_data:/app/data
+    restart: unless-stopped
+    networks:
+      - webapp-net
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=9100"
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+    networks:
+      - webapp-net
+
+volumes:
+  webapp_data:
+    driver: local
+
+networks:
+  webapp-net:
+    external: true

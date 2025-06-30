@@ -1,0 +1,38 @@
+---
+- name: Backup Application Data
+  hosts: webservers
+  become: yes
+  vars:
+    backup_dir: /backup
+    timestamp: "{{ ansible_date_time.epoch }}"
+    
+  tasks:
+    - name: Create backup directory
+      file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: '0755'
+        
+    - name: Stop application container
+      docker_container:
+        name: nodejs-webapp
+        state: stopped
+        
+    - name: Create backup of application data
+      archive:
+        path: /var/lib/docker/volumes/webapp_data
+        dest: "{{ backup_dir }}/webapp-backup-{{ timestamp }}.tar.gz"
+        format: gz
+        
+    - name: Start application container
+      docker_container:
+        name: nodejs-webapp
+        state: started
+        
+    - name: Upload backup to S3 (optional)
+      amazon.aws.s3_object:
+        bucket: webapp-backups
+        object: "webapp-backup-{{ timestamp }}.tar.gz"
+        src: "{{ backup_dir }}/webapp-backup-{{ timestamp }}.tar.gz"
+        mode: put
+      when: s3_backup_enabled | default(false)

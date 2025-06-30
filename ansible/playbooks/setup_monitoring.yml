@@ -1,0 +1,26 @@
+---
+- name: Setup Monitoring Stack
+  hosts: monitoring
+  become: yes
+  vars:
+    prometheus_port: 9090
+    grafana_port: 3000
+    
+  roles:
+    - docker
+    - monitoring
+
+  tasks:
+    - name: Wait for Grafana to be ready
+      uri:
+        url: "http://{{ ansible_host }}:{{ grafana_port }}/api/health"
+        status_code: 200
+      retries: 10
+      delay: 10
+      
+    - name: Display monitoring URLs
+      debug:
+        msg:
+          - "Prometheus: http://{{ ansible_host }}:{{ prometheus_port }}"
+          - "Grafana: http://{{ ansible_host }}:{{ grafana_port }}"
+          - "Default credentials: admin/admin"

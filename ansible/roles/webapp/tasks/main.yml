@@ -1,0 +1,37 @@
+---
+- name: Create application directory
+  file:
+    path: /opt/webapp
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: '0755'
+
+- name: Copy application files
+  copy:
+    src: "{{ playbook_dir }}/../../docker/webapp/"
+    dest: /opt/webapp/
+    owner: ubuntu
+    group: ubuntu
+
+- name: Create docker-compose file from template
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/webapp/docker-compose.yml
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+
+- name: Build and start application
+  docker_compose:
+    project_src: /opt/webapp
+    build: yes
+    state: present
+  register: output
+
+- name: Wait for application to be ready
+  wait_for:
+    port: 3000
+    host: 0.0.0.0
+    delay: 5
+    timeout: 60

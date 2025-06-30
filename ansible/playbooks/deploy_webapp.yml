@@ -1,0 +1,28 @@
+---
+- name: Deploy Web Application
+  hosts: webservers
+  become: yes
+  vars:
+    app_name: nodejs-webapp
+    app_port: 3000
+    docker_network: webapp-net
+    
+  roles:
+    - docker
+    - webapp
+
+  tasks:
+    - name: Create Docker network
+      docker_network:
+        name: "{{ docker_network }}"
+        
+    - name: Health check
+      uri:
+        url: "http://{{ ansible_host }}:{{ app_port }}/health"
+        status_code: 200
+      retries: 5
+      delay: 10
+      
+    - name: Display application URL
+      debug:
+        msg: "Application is running at http://{{ ansible_host }}:{{ app_port }}"
